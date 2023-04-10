@@ -21,3 +21,28 @@ def preprocess_text(text):
 
 data['abstract'] = data['abstract'].apply(preprocess_text)
 data['keywords'] = data['keywords'].apply(preprocess_text)
+abstracts = data['abstract']
+keywords = data['keywords']
+
+abstract_tokenizer = Tokenizer(num_words=5000)
+abstract_tokenizer.fit_on_texts(abstracts)
+abstract_sequences = abstract_tokenizer.texts_to_sequences(abstracts)
+
+keyword_tokenizer = Tokenizer(num_words=1000)
+keyword_tokenizer.fit_on_texts(keywords)
+keyword_sequences = keyword_tokenizer.texts_to_sequences(keywords)
+abstract_pad = pad_sequences(abstract_sequences, maxlen=200, padding='post', truncating='post')
+keyword_pad = pad_sequences(keyword_sequences, maxlen=20, padding='post', truncating='post')
+X_train, X_test, y_train, y_test = train_test_split(abstract_pad, keyword_pad, test_size=0.2, random_state=42)
+input_layer = tf.keras.layers.Input(shape=(200,))
+embedding_layer = tf.keras.layers.Embedding(5000, 100)(input_layer)
+lstm_layer = tf.keras.layers.LSTM(100)(embedding_layer)
+repeat_layer = tf.keras.layers.RepeatVector(20)(lstm_layer)
+lstm_layer_2 = tf.keras.layers.LSTM(100, return_sequences=True)(repeat_layer)
+dense_layer = tf.keras.layers.Dense(100, activation='softmax')(lstm_layer_2)
+
+model = tf.keras.models.Model(inputs=input_layer, outputs=dense_layer)
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=10, batch_size=32, validation_split=0.2)
+model.evaluate(X_test, y_test)
+
